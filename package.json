@@ -1,0 +1,49 @@
+{
+  "name": "@deepseek-ai/dsh-plugin-vision",
+  "description": "The see tool for the DeepSeek Harness: offline OCR with positions (macOS Vision) + ASCII layout art (PIL) + vision-model semantic description (mimo-v2.5 via the opencode-go gateway). Works with any model, including text-only ones.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qizhen2021/dsh-plugin-vision.git"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/copy-resources.mjs",
+    "prepack": "npm run build",
+    "test": "node test/unit.mjs"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "vision",
+    "ocr",
+    "ascii-art",
+    "vlm",
+    "text-only-model"
+  ],
+  "dependencies": {
+    "@deepseek-ai/dsh-fs": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-tools": "0.1.0-rc.6",
+    "@deepseek-ai/schemastery": "^3.18.1",
+    "openai": "^6.26.0",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^5.6.0"
+  }
+}

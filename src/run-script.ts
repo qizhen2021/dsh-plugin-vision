@@ -104,7 +104,11 @@ function readableError(text: string): string {
 
 export function runScript(options: RunScriptOptions): Promise<RunScriptResult> {
   const { command, args, timeoutMs, signal, env, missingHint, maxBytes = 64 * 1024 * 1024 } = options;
-  const childEnv = env === undefined ? cleanEnv() : { ...cleanEnv(), ...env };
+  // PYTHONPATH must not survive ANY merge path: the caller-provided env is
+  // layered after the scrubbed base, so strip it again after merging.
+  const merged = env === undefined ? cleanEnv() : { ...cleanEnv(), ...env };
+  delete merged.PYTHONPATH;
+  const childEnv = merged;
   return new Promise((resolve) => {
     let child: ChildProcess;
     try {

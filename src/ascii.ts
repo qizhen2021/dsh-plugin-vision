@@ -1,4 +1,4 @@
-import { runScript } from "./run-script.js";
+import { resolvePython, runScript } from "./run-script.js";
 
 /**
  * ASCII layout-art channel. Spawns `python3 <resources/ascii.py> <image>` —
@@ -19,7 +19,7 @@ export interface AsciiOptions {
 
 export async function runAscii(options: AsciiOptions): Promise<AsciiResult> {
   const result = await runScript({
-    command: "python3",
+    command: resolvePython(),
     args: [options.scriptPath, options.imagePath],
     timeoutMs: options.timeoutMs,
     signal: options.signal,

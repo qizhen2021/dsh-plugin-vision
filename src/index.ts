@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import z from "@deepseek-ai/schemastery";
-import { applySeeTool, type SeeConfig, type SeeContext } from "./see.js";
+import { applySeeTool, type SeeConfig, type SeeContext, type SeeRuntime } from "./see.js";
+import { VISION_SETTINGS_NS, VisionSettingsSchema, type SettingsLike } from "./settings.js";
 
 /**
  * dsh-plugin-vision — the `see` tool for the DeepSeek Harness.
@@ -51,5 +52,26 @@ export type Config = SeeConfig;
 
 export function apply(ctx: SeeContext, config?: Partial<Config>): void {
   const resolved: SeeConfig = { ...DEFAULTS, ...(config ?? {}) };
-  applySeeTool(ctx, resolved, fileURLToPath(new URL("./resources/", import.meta.url)));
+  const runtime: SeeRuntime = { defaultModel: resolved.defaultModel };
+  // Durable settings layer: schema defaults → composition base (loader config)
+  // → user section (GUI edits). `watch` pushes GUI changes into the running
+  // tool live; the namespace also survives restarts via the settings store.
+  const settings = ctx.get("settings") as SettingsLike | undefined;
+  if (settings !== undefined) {
+    try {
+      const scope = settings.register(VISION_SETTINGS_NS, VisionSettingsSchema, {
+        base: { defaultModel: resolved.defaultModel },
+        applies: "live",
+      });
+      runtime.defaultModel = scope.get().defaultModel;
+      const watcher = () => scope.watch((next) => {
+        runtime.defaultModel = next.defaultModel;
+      });
+      if (ctx.effect !== undefined) ctx.effect(watcher);
+      else watcher();
+    } catch (error) {
+      console.error("[dsh-plugin-vision] settings registration failed:", error);
+    }
+  }
+  applySeeTool(ctx, resolved, fileURLToPath(new URL("./resources/", import.meta.url)), runtime);
 }

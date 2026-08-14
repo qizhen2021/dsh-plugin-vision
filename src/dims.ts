@@ -1,4 +1,4 @@
-import { runScript } from "./run-script.js";
+import { resolvePython, runScript } from "./run-script.js";
 
 /**
  * Image dimension probe. Primary: macOS `sips` (native, instant, no PIL
@@ -55,7 +55,7 @@ export async function runDims(options: DimsOptions): Promise<DimsResult> {
     if (parsed.ok) return parsed;
   }
   const pil = await runScript({
-    command: "python3",
+    command: resolvePython(),
     args: [options.scriptPath, options.imagePath],
     timeoutMs: options.timeoutMs,
     signal: options.signal,

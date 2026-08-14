@@ -1,4 +1,4 @@
-# @deepseek-ai/dsh-plugin-vision
+# @qizhen2021/dsh-plugin-vision
 
 给纯文本模型一双"眼睛"。注册一个 `see` 工具：对任意图片输出**纯文本**的三通道分析——
 
@@ -16,47 +16,64 @@
 
 仓库已提交构建产物 `lib/`（含资源文件），依赖（`@deepseek-ai/dsh-tools` 等）均在 npm 公开注册表，**无需本地编译**即可部署。三种方式任选：
 
-### 方式 A：git 依赖（推荐，最省事）
+### 方式 A：npm 安装（推荐，最省事）
 
-编辑 `~/.dsh/profiles/web/package.json`：
+```bash
+cd ~/.dsh/profiles/web && pnpm add @qizhen2021/dsh-plugin-vision
+```
+
+然后在 `~/.dsh/profiles/web/package.json` 的 `dsh.profile.bundles` 数组追加一行：
 
 ```jsonc
 {
-  "dependencies": {
-    "@deepseek-ai/dsh-plugin-vision": "github:qizhen2021/dsh-plugin-vision"
-  },
   "dsh": {
     "profile": {
       "bundles": [
         "@deepseek-ai/dsh-base",
         "@deepseek-ai/dsh-web-app",
-        "@deepseek-ai/dsh-plugin-vision"   // ← 追加这一行
+        "@qizhen2021/dsh-plugin-vision"   // ← 追加这一行
       ]
     }
   }
 }
 ```
 
-然后：
+重启 `dsh web` 后，`see` 出现在所有会话的工具列表。
 
-```bash
-cd ~/.dsh/profiles/web && pnpm install
-# 重启 dsh web；刷新 GUI，检查 see 出现在工具列表
+### 方式 B：git 依赖（不装 npm 包，直接跟仓库）
+
+```jsonc
+{
+  "dependencies": {
+    "@qizhen2021/dsh-plugin-vision": "github:qizhen2021/dsh-plugin-vision"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "@qizhen2021/dsh-plugin-vision"   // ← 追加这一行
+      ]
+    }
+  }
+}
 ```
 
-### 方式 B：clone + file: 软链（方便本地改配置/二次开发）
+然后 `cd ~/.dsh/profiles/web && pnpm install`，重启 `dsh web`。
+
+### 方式 C：clone + file: 软链（方便本地改配置/二次开发）
 
 ```bash
 git clone https://github.com/qizhen2021/dsh-plugin-vision
 cp ~/.dsh/profiles/web/package.json ~/.dsh/profiles/web/package.json.bak-$(date +%Y%m%d-%H%M%S)
 ln -sfn "$(pwd)/dsh-plugin-vision" ~/.dsh/profiles/web/vendor/dsh-plugin-vision
 # 在 ~/.dsh/profiles/web/package.json 里：
-#   dependencies 加  "@deepseek-ai/dsh-plugin-vision": "file:vendor/dsh-plugin-vision"
-#   dsh.profile.bundles 追加 "@deepseek-ai/dsh-plugin-vision"
+#   dependencies 加  "@qizhen2021/dsh-plugin-vision": "file:vendor/dsh-plugin-vision"
+#   dsh.profile.bundles 追加 "@qizhen2021/dsh-plugin-vision"
 cd ~/.dsh/profiles/web && pnpm install   # 重启 dsh web 生效
 ```
 
-### 方式 C：其他 DSH 组合（非 web profile）
+### 方式 D：其他 DSH 组合（非 web profile）
 
 包根只导出 Cordis 插件契约（`name` / `inject` / `Config` / `apply`），可像 `@deepseek-ai/dsh-tool-fs` 一样挂进任意 composition / agent preset：`inject: ["tools", "fs", "systemPrompt"]`，加载器会按 `Config` schema 注入配置。
 
@@ -86,6 +103,15 @@ cd ~/.dsh/profiles/web && pnpm install   # 重启 dsh web 生效
 | `vlmTimeoutMs` | `120000` | 网关调用总超时（prep 另计 ≤30s） |
 
 密钥读取双层策略：优先 `ctx.credentials` 服务（热重载、0600 权限约束）；服务未挂载时回退到 `credentialPath` 的 YAML 直读（`yaml` 包）。密钥**不进代码、不进日志、不进 schema、不进 presentationMeta**。
+
+## GUI 配置（设置 → 通用 → 视觉模型）
+
+v0.2.0 起插件在 `ctx.settings` 注册命名空间 `dsh-plugin-vision`（schema：`defaultModel`，`applies: 'live'`）：
+
+- **GUI**：设置 → 通用页出现「视觉模型」下拉行（由轻量设置桥渲染，本机 loopback 可用），选择立即生效并持久化；
+- **持久层**：用户选择写入 settings 存储（`~/.dsh/settings.yaml` 的 `dsh-plugin-vision` 段），跨重启保留；也可手工编辑该文件；
+- **优先级**：settings 用户层 > composition base（loader 配置，如 `cordis.patch.yml` 的 `defaultModel`）> schema 默认（`mimo-v2.5`）；
+- **运行时**：Host 端 `watch` 设置变更，工具无需重启即用新默认值；单次调用仍可用 `see` 的 `model` 参数覆盖。
 
 ## 工具
 

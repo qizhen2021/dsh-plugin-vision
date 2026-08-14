@@ -36,6 +36,7 @@ export interface SeeConfig {
 /** Minimal structural view of the services this plugin consumes. */
 export interface SeeContext {
   get(name: string): unknown;
+  effect?(callback: () => () => void): void;
   fs: {
     resolve(path: string, opts?: { cwd?: string; signal?: AbortSignal }): Promise<{ displayPath: string }>;
     stat(target: unknown, signal?: AbortSignal): Promise<{ type: string } | undefined>;
@@ -49,6 +50,11 @@ export interface SeeContext {
   systemPrompt: {
     section(section: { name: string; order: number; text: string }): () => void;
   };
+}
+
+/** Mutable per-run state; the settings watcher updates it live. */
+export interface SeeRuntime {
+  defaultModel: string;
 }
 
 const IMAGE_EXTENSIONS: Record<string, string> = {
@@ -92,7 +98,7 @@ interface ParsedArgs {
   model: string;
 }
 
-function parseSeeArgs(args: Record<string, unknown>, config: SeeConfig): ParsedArgs {
+function parseSeeArgs(args: Record<string, unknown>, defaultModel: string): ParsedArgs {
   const filePath = args.file_path;
   if (typeof filePath !== "string" || filePath.trim().length === 0) {
     throw new VisionError("file_path must be a non-empty string", VISION_ERROR_CODES.INVALID_ARGS);
@@ -103,7 +109,7 @@ function parseSeeArgs(args: Record<string, unknown>, config: SeeConfig): ParsedA
   };
   const model = typeof args.model === "string" && args.model.trim().length > 0
     ? args.model.trim()
-    : config.defaultModel;
+    : defaultModel;
   return { filePath: filePath.trim(), ocr: flag("ocr"), ascii: flag("ascii"), vlm: flag("vlm"), model };
 }
 
@@ -114,7 +120,7 @@ interface ToolExecutionLike {
   agent?: { session?: { header?: { cwd?: string } } };
 }
 
-export function applySeeTool(ctx: SeeContext, config: SeeConfig, resourceDir: string): void {
+export function applySeeTool(ctx: SeeContext, config: SeeConfig, resourceDir: string, runtime: SeeRuntime): void {
   const toolName = ctx.tools.get("see") === undefined ? "see" : "vision_see";
   ctx.systemPrompt.section({
     name: "tool:see",
@@ -144,7 +150,7 @@ export function applySeeTool(ctx: SeeContext, config: SeeConfig, resourceDir: st
       },
       model: {
         type: "string",
-        description: `Vision model for the semantic channel. Defaults to ${config.defaultModel}.`,
+        description: `Vision model for the semantic channel. Defaults to ${runtime.defaultModel}.`,
       },
     },
     output: {
@@ -239,7 +245,7 @@ export function applySeeTool(ctx: SeeContext, config: SeeConfig, resourceDir: st
     isConcurrencySafe: () => true,
     timeoutMs: 240000,
     async execute(args, exec) {
-      const input = parseSeeArgs(args as Record<string, unknown>, config);
+      const input = parseSeeArgs(args as Record<string, unknown>, runtime.defaultModel);
       const toolExec = exec as unknown as ToolExecutionLike;
       const sessionCwd = toolExec.agent?.session?.header?.cwd;
       const target = await ctx.fs.resolve(input.filePath, {

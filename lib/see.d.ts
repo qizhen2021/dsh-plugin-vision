@@ -24,6 +24,7 @@ export interface SeeConfig {
 /** Minimal structural view of the services this plugin consumes. */
 export interface SeeContext {
     get(name: string): unknown;
+    effect?(callback: () => () => void): void;
     fs: {
         resolve(path: string, opts?: {
             cwd?: string;
@@ -49,4 +50,8 @@ export interface SeeContext {
         }): () => void;
     };
 }
-export declare function applySeeTool(ctx: SeeContext, config: SeeConfig, resourceDir: string): void;
+/** Mutable per-run state; the settings watcher updates it live. */
+export interface SeeRuntime {
+    defaultModel: string;
+}
+export declare function applySeeTool(ctx: SeeContext, config: SeeConfig, resourceDir: string, runtime: SeeRuntime): void;

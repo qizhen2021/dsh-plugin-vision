@@ -1,0 +1,7 @@
+# dsh-plugin-vision bundle patch: 把 see 工具挂载为插件条目。
+# 该包无 patch 层语义，仅需把插件挂进 composition；加载器按 dsh.bundle.patch
+# 定位本文件并执行 insert。
+
+- insert:
+    - id: dsh-plugin-vision
+      name: '@deepseek-ai/dsh-plugin-vision'

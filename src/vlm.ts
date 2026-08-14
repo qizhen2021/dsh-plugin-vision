@@ -2,7 +2,7 @@ import { readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import OpenAI from "openai";
-import { runScript } from "./run-script.js";
+import { resolvePython, runScript } from "./run-script.js";
 
 /**
  * Vision-model semantic channel. Preprocesses with `prep.py` (RGB → longest
@@ -54,7 +54,7 @@ export async function runVlm(options: VlmOptions): Promise<VlmResult> {
   }
   const prepped = join(tmpdir(), `dsh-vlm-${process.pid}-${Date.now()}.jpg`);
   const prep = await runScript({
-    command: "python3",
+    command: resolvePython(),
     args: [options.prepScriptPath, options.imagePath, prepped],
     timeoutMs: Math.min(options.timeoutMs, 30000),
     signal: options.signal,

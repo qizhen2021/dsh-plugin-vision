@@ -1,3 +1,4 @@
+export declare function resolvePython(): string;
 /**
  * Shared subprocess runner for the local channels (swift OCR, python3 ascii /
  * prep / dims). Every spawn carries the tool-execution signal — abort kills

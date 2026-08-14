@@ -1,4 +1,62 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
+
+/**
+ * Resolve a working python3 interpreter (one whose PIL imports) and memoize
+ * the result. Ambient PATHs drift — a venv with a broken Pillow can shadow
+ * the system interpreter — so the local channels probe candidates once per
+ * process instead of depending on PATH luck. The probe never throws and the
+ * last-resort fallback keeps the original failure readable at channel level.
+ */
+const KNOWN_PYTHONS = [
+  "/usr/bin/python3",
+  "/Library/Developer/CommandLineTools/usr/bin/python3",
+  "/opt/homebrew/bin/python3",
+  "/usr/local/bin/python3",
+];
+
+let pythonCache: string | null = null;
+
+/**
+ * Process environment without PYTHONPATH: an ambient venv export hijacks
+ * every interpreter (even the system one) into its own site-packages, where
+ * a broken Pillow then breaks all local channels. The channels own their
+ * python choice through {@link resolvePython}, so the ambient path is noise.
+ */
+function cleanEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  delete env.PYTHONPATH;
+  return env;
+}
+
+export function resolvePython(): string {
+  if (pythonCache !== null) return pythonCache;
+  const candidates: string[] = [];
+  for (const dir of (process.env.PATH ?? "").split(":")) {
+    const candidate = `${dir}/python3`;
+    if (dir.length > 0 && !candidates.includes(candidate)) candidates.push(candidate);
+  }
+  for (const candidate of KNOWN_PYTHONS) {
+    if (!candidates.includes(candidate)) candidates.push(candidate);
+  }
+  const probeEnv = cleanEnv();
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue;
+    try {
+      // `from PIL import Image` loads the compiled _imaging extension —
+      // `import PIL` alone passes even when the extension is broken.
+      const probe = spawnSync(candidate, ["-c", "from PIL import Image"], { timeout: 3000, env: probeEnv });
+      if (probe.status === 0) {
+        pythonCache = candidate;
+        return candidate;
+      }
+    } catch {
+      // next candidate
+    }
+  }
+  pythonCache = "python3";
+  return pythonCache;
+}
 
 /**
  * Shared subprocess runner for the local channels (swift OCR, python3 ascii /
@@ -46,10 +104,11 @@ function readableError(text: string): string {
 
 export function runScript(options: RunScriptOptions): Promise<RunScriptResult> {
   const { command, args, timeoutMs, signal, env, missingHint, maxBytes = 64 * 1024 * 1024 } = options;
+  const childEnv = env === undefined ? cleanEnv() : { ...cleanEnv(), ...env };
   return new Promise((resolve) => {
     let child: ChildProcess;
     try {
-      child = spawn(command, [...args], { stdio: ["ignore", "pipe", "pipe"], env });
+      child = spawn(command, [...args], { stdio: ["ignore", "pipe", "pipe"], env: childEnv });
     } catch (error) {
       resolve({ ok: false, error: describeSpawnError(command, error, missingHint) });
       return;
